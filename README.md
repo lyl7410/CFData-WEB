@@ -1,3 +1,12 @@
+# 增强版维护入口
+
+本 Fork 由 lyl7410 维护，基于 PoemMisty/CFData-WEB，遵循原项目 GPLv3。
+2026-10-26 新增增强版更新渠道隔离、离线回归测试与项目文档。
+长期计划、完成状态及双端发布方案见 [中文项目文档](docs/README.md)。
+增强版下载入口为 [本 Fork Releases](https://github.com/lyl7410/CFData-WEB/releases)；尚无增强版发布时请勿将下方上游说明中的原版包当作增强版。
+
+---
+
 # CFData-Web
 
 CFData-Web 是一个基于 Go 的 Cloudflare IP 测试与筛选工具，提供本地 Web 与 CLI 两种使用方式，支持官方 IP 段扫描、非标目标测试、测速、结果筛选、导出和 GitHub 上传。
