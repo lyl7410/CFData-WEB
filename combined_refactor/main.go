@@ -24,7 +24,11 @@ type latestReleaseInfo struct {
 }
 
 func getLatestRelease(ctx context.Context) (latestReleaseInfo, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/repos/PoemMisty/CFData-WEB/releases/latest", nil)
+	return getLatestReleaseWithClient(ctx, managementHTTPClient(0))
+}
+
+func getLatestReleaseWithClient(ctx context.Context, client *http.Client) (latestReleaseInfo, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, releaseLatestAPIURL, nil)
 	if err != nil {
 		return latestReleaseInfo{}, err
 	}
@@ -32,7 +36,7 @@ func getLatestRelease(ctx context.Context) (latestReleaseInfo, error) {
 	req.Header.Set("User-Agent", "CFData-WEB/"+appVersion)
 	ctx, cancel := context.WithTimeout(ctx, 6*time.Second)
 	defer cancel()
-	resp, err := managementHTTPClient(0).Do(req.WithContext(ctx))
+	resp, err := client.Do(req.WithContext(ctx))
 	if err != nil {
 		return latestReleaseInfo{}, err
 	}
