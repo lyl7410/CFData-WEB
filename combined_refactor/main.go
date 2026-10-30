@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -148,6 +149,8 @@ func main() {
 		disableANSIColors()
 	}
 	cliCfg := registerCLIFlags()
+	var readyFile string
+	flag.StringVar(&readyFile, "ready-file", "", "Write actual listening port to private startup file")
 
 	flag.IntVar(&listenPort, "port", 13335, "服务监听端口")
 	flag.StringVar(&listenHost, "host", "", "服务监听地址；留空监听全部地址，Android APK 建议使用 127.0.0.1")
@@ -300,7 +303,20 @@ func main() {
 		Addr:              addr,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
-	if err := server.ListenAndServe(); err != nil {
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		fmt.Printf("Listen failed: %v\n", err)
+		return
+	}
+	defer listener.Close()
+	if readyFile != "" {
+		if err := writeReadyPort(readyFile, listener.Addr().(*net.TCPAddr).Port); err != nil {
+			fmt.Printf("Startup handshake failed: %v\n", err)
+			return
+		}
+		defer os.Remove(readyFile)
+	}
+	if err := server.Serve(listener); err != nil {
 		fmt.Printf("启动失败: %v\n", err)
 	}
 }

@@ -33,6 +33,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.util.UUID;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -42,7 +44,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
-    private static final int PORT = 13335;
+    private int backendPort;
+    private File readyFile;
+    private volatile boolean destroyed;
     private static final String BACKEND_LIBRARY = "libcfdata.so";
     private static final int REQUEST_CREATE_DOCUMENT = 1001;
     private static final int REQUEST_FILE_CHOOSER = 1002;
@@ -124,7 +128,7 @@ public class MainActivity extends Activity {
         card.addView(logo, logoParams);
 
         loadingTitle = new TextView(this);
-        loadingTitle.setText("CFData");
+        loadingTitle.setText("CFData 增强版");
         loadingTitle.setTextColor(dark ? Color.rgb(241, 245, 249) : Color.rgb(31, 41, 55));
         loadingTitle.setTextSize(24);
         loadingTitle.setTypeface(Typeface.DEFAULT_BOLD);
@@ -219,22 +223,29 @@ public class MainActivity extends Activity {
             try {
                 setLoadingMessage("正在准备本地服务...");
                 File backend = prepareBackendBinary();
+                readyFile = new File(getFilesDir(), "backend-" + UUID.randomUUID() + ".port");
                 ProcessBuilder builder = new ProcessBuilder(
                         backend.getAbsolutePath(),
                         "-host", "127.0.0.1",
-                        "-port", String.valueOf(PORT)
+                        "-port", "0",
+                        "-ready-file", readyFile.getAbsolutePath()
                 );
                 builder.directory(getFilesDir());
                 builder.redirectErrorStream(true);
+                builder.redirectOutput(new File(getFilesDir(), "backend.log"));
                 backendProcess = builder.start();
+                if (destroyed) { backendProcess.destroy(); return; }
                 setLoadingMessage("正在连接本地服务...");
                 waitForBackend();
                 mainHandler.post(() -> {
                     setLoadingMessage("正在加载界面...");
-                    webView.loadUrl("http://127.0.0.1:" + PORT);
+                    if (!destroyed) webView.loadUrl("http://127.0.0.1:" + backendPort);
                 });
             } catch (Exception e) {
-                mainHandler.post(() -> showStartupError("启动失败", "本地服务启动失败，请重新打开应用\n" + e.getMessage()));
+                if (backendProcess != null) backendProcess.destroy();
+                if (readyFile != null) readyFile.delete();
+                if (destroyed) return;
+                mainHandler.post(() -> { if (!destroyed) showStartupError("启动失败", "本地服务启动失败，请重新打开应用\n" + e.getMessage()); });
             }
         });
     }
@@ -280,10 +291,17 @@ public class MainActivity extends Activity {
         throw new IOException("未找到内置后端: " + nativeBackend.getAbsolutePath());
     }
 
-    private void waitForBackend() throws InterruptedException {
+    private void waitForBackend() throws InterruptedException, IOException {
         long deadline = System.currentTimeMillis() + 15000;
         while (System.currentTimeMillis() < deadline) {
-            if (isBackendReady()) {
+            if (destroyed || Thread.currentThread().isInterrupted()) throw new InterruptedException();
+            if (!backendProcess.isAlive()) throw new IOException("后端进程已退出，请检查 backend.log");
+            if (backendPort == 0 && readyFile.isFile()) {
+                backendPort = Integer.parseInt(new String(Files.readAllBytes(readyFile.toPath()), StandardCharsets.UTF_8).trim());
+                readyFile.delete();
+                if (backendPort < 1 || backendPort > 65535) throw new IOException("后端端口无效");
+            }
+            if (backendPort != 0 && isBackendReady()) {
                 injectExportBridge();
                 return;
             }
@@ -295,11 +313,11 @@ public class MainActivity extends Activity {
     private boolean isBackendReady() {
         HttpURLConnection connection = null;
         try {
-            URL url = new URL("http://127.0.0.1:" + PORT + "/favicon.png");
+            URL url = new URL("http://127.0.0.1:" + backendPort + "/favicon.png");
             connection = (HttpURLConnection) url.openConnection();
             connection.setConnectTimeout(500);
             connection.setReadTimeout(500);
-            return connection.getResponseCode() < 500;
+            return connection.getResponseCode() == 200 && backendProcess.isAlive();
         } catch (IOException ignored) {
             return false;
         } finally {
@@ -422,10 +440,12 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        destroyed = true;
+        executor.shutdownNow();
+        if (readyFile != null) readyFile.delete();
         if (backendProcess != null) {
             backendProcess.destroy();
         }
-        executor.shutdownNow();
         if (webView != null) {
             webView.destroy();
         }

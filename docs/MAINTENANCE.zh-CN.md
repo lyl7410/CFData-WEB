@@ -82,3 +82,11 @@ git push origin sync/upstream-YYYYMMDD
 | GitHub PR CI | 未新增 CI；现有发布工作流不监听 PR，不能将本地通过写成远程 CI 通过 |
 
 二进制在忽略目录 release_assets 中，仅作验证；本次不发布 EXE/APK、不运行公网扫描。后端交叉编译不替代完整 APK 与真机验收。
+
+## P1 本地准备（2026-10-29）
+
+PR #1 已合并，P0 差异补审未发现须以 APK 验收阻断更新渠道修复的问题。无 GitHub 正式 Review 或 PR 检查记录，不补写为审批/CI 通过。
+
+后续 Android 采用系统分配的回环端口（-port 0），绑定成功后写入每次启动唯一的私有端口文件；外壳只连接该端口，并检查子进程存活，输出重定向到私有 backend.log 避免管道阻塞。此机制解决端口分配，不是 WebView 完整安全审计。
+
+设备验收见 ANDROID-VALIDATION.zh-CN.md。正式签名/Secrets/发布及 .github 修改均未执行。

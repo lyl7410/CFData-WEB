@@ -2,6 +2,16 @@ plugins {
     id "com.android.application"
 }
 
+def versionFile = new Properties()
+file("version.properties").withInputStream { versionFile.load(it) }
+def rawCode = System.getenv("ANDROID_VERSION_CODE") ?: versionFile.getProperty("versionCode")
+if (!(rawCode ==~ /[1-9][0-9]*/) || new BigInteger(rawCode) > 2100000000L) {
+    throw new GradleException("ANDROID_VERSION_CODE must be an integer in 1..2100000000")
+}
+if (rawCode.toLong() < versionFile.getProperty("versionCode").toLong()) {
+    throw new GradleException("versionCode cannot be lower than the checked-in release baseline")
+}
+
 android {
     namespace "com.cfdata.web"
     compileSdk 35
@@ -19,14 +29,18 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.cfdata.web"
+        applicationId "io.github.lyl7410.cfdata.enhanced"
         minSdk 26
         targetSdk 35
-        versionCode 1
-        versionName System.getenv("ANDROID_VERSION_NAME") ?: "1.0"
+        versionCode rawCode.toInteger()
+        versionName System.getenv("ANDROID_VERSION_NAME") ?: versionFile.getProperty("versionName")
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-debug"
+        }
         release {
             signingConfig signingConfigs.release
         }

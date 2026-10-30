@@ -13,7 +13,7 @@ Windows 浏览器界面与 Android 本地 WebView 使用同一提交的 Go 后�
 - [x] 建立版本化中文路线图、维护流程、验收矩阵。
 - [x] 更新检测 API 与下载入口统一指向增强版仓库，避免引导用户下载原版覆盖增强版。
 - [x] 增加离线更新检测回归测试与 Windows/Linux/Android 后端验证脚本。
-- [ ] PR 人工审阅、合并；保持 main 不变直到用户审核。
+- [x] PR #1 已于 2026-10-26 合并（5aa27745）；2026-10-29 补充差异审查，GitHub 无正式 Review/远程检查记录。
 
 验收：测试覆盖成功响应、缺省下载 URL、无 Release、限流及损坏 JSON；通过 Go test/vet 和目标平台后端构建。执行证据记录在维护文档。
 
@@ -73,3 +73,9 @@ Windows 浏览器界面与 Android 本地 WebView 使用同一提交的 Go 后�
 | 版本 | 日期 | 内容 |
 | --- | --- | --- |
 | 1.0 | 2026-10-26 | 基于实际源码建立阶段、验收及维护基线 |
+
+## P1 实施记录（2026-10-29，待验收）
+
+本地分支 enhancement/android-identity：独立 applicationId；debug 使用 .debug 后缀；显式 Activity 类名；增强版名称；版本基线 app/version.properties；后端绑定回环动态端口并通过私有启动文件通知 Android。上述实现不能视为 APK/真机验收通过。
+
+发布时必须更新 version.properties 中的 versionCode，严格高于所有已分发版本；构建拒绝非法值和低于仓库基线的环境覆盖值。当前基线 1 仅用于首次交付，不能证明比外部已有包更新。
